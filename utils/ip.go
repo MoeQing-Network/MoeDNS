@@ -6,10 +6,12 @@ import (
 	"log"
 	"net/netip"
 	"os"
+
+	"github.com/spf13/viper"
 )
 
 func FindPrefix(ip netip.Addr) bool {
-	path := "cn-prefix.csv"
+	path := viper.GetString("csvPath")
 	csvfile, err := os.Open(path)
 	if err != nil {
 		log.Fatalln("Couldn't open the csv file", err)

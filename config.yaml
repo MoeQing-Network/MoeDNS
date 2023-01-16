@@ -1,0 +1,4 @@
+semNum: 100
+listenPort: 53
+upstream: 1.0.0.1
+csvPath: cn-prefix.csv

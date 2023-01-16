@@ -5,14 +5,16 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"strconv"
 
 	"github.com/MoeQing-Network/MoeDNS/utils"
 	"github.com/miekg/dns"
+	"github.com/spf13/viper"
 )
 
 func Start() {
 	// 监听本地端口 53
-	serverAddr, err := net.ResolveUDPAddr("udp", ":53")
+	serverAddr, err := net.ResolveUDPAddr("udp", ":"+viper.GetString("listenPort"))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -26,14 +28,19 @@ func Start() {
 	defer serverConn.Close()
 
 	// 上游 DNS 服务器
-	upstreamAddr, err := net.ResolveUDPAddr("udp", "1.0.0.1:53")
+	upstreamAddr, err := net.ResolveUDPAddr("udp", viper.GetString("upstream")+":53")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	// 处理请求
-	sem := make(chan struct{}, 100)
+	num_str := viper.GetString("semNum")
+	sem_num, err := strconv.Atoi(num_str)
+	if err != nil {
+		fmt.Println(err)
+	}
+	sem := make(chan struct{}, sem_num)
 
 	for {
 		sem <- struct{}{}
