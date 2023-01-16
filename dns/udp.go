@@ -3,8 +3,10 @@ package dns
 import (
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 
+	"github.com/MoeQing-Network/MoeDNS/utils"
 	"github.com/miekg/dns"
 )
 
@@ -31,7 +33,7 @@ func Start() {
 	}
 
 	// 处理请求
-	sem := make(chan struct{}, 10)
+	sem := make(chan struct{}, 100)
 
 	for {
 		sem <- struct{}{}
@@ -86,6 +88,7 @@ func handleRequest(serverConn *net.UDPConn, upstreamAddr *net.UDPAddr, sem chan 
 
 	// 确定响应中包含的 IP 数量
 	var ipCount int
+	var matchPrefix bool
 	for _, answer := range msg.Answer {
 		if a, ok := answer.(*dns.A); ok {
 			ip := a.A
@@ -94,21 +97,26 @@ func handleRequest(serverConn *net.UDPConn, upstreamAddr *net.UDPAddr, sem chan 
 		}
 		if a, ok := answer.(*dns.AAAA); ok {
 			ip := a.AAAA
-			fmt.Println(ip.String())
-
+			ip_net, _ := netip.ParseAddr(ip.String())
+			if utils.FindPrefix(ip_net) {
+				matchPrefix = true
+			}
 			ipCount++
 		}
 
 	}
 	fmt.Println("Total IPs:", ipCount)
 
-	for i := 0; i < len(msg.Answer); i++ {
-		if msg.Answer[i].Header().Rrtype == dns.TypeAAAA {
-			// 删除 AAAA 记录
-			msg.Answer = append(msg.Answer[:i], msg.Answer[i+1:]...)
-			i--
+	if matchPrefix {
+		for i := 0; i < len(msg.Answer); i++ {
+			if msg.Answer[i].Header().Rrtype == dns.TypeAAAA {
+				// 删除 AAAA 记录
+				msg.Answer = append(msg.Answer[:i], msg.Answer[i+1:]...)
+				i--
+			}
 		}
 	}
+
 	res, _ := msg.Pack()
 	// 将响应返回给客户端
 	_, err = serverConn.WriteToUDP(res, addr)
